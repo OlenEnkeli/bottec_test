@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:12
+    container_name: database
+    environment:
+      - POSTGRES_DB=bottec_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - 5432:5433
+
+  currency_api:
+    container_name: currencies_api
+    build:
+      dockerfile: Dockerfile
+    environment:
+      - SERVER_NAME=default
+      - SERVER_HOST=http://127.0.0.1:8000
+      - SERVER_TZ=Europe/Moscow
+      - APP_MODE=develop
+      - PROJECT_NAME=bottec_test
+      - PROJECT_VERSION=0.1.0
+      - API_STATUS=develop
+      - POSTGRES_SERVER=database:5432
+      - POSTGRES_DB=bottec_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+
+      - EXCHANGERATES_API_KEY=mYQX0S0miaPX8NK7MMlH6Z9SVapRjOWR
+      - EXCHANGERATES_API_URL=https://api.apilayer.com/exchangerates_data
+
+      - CURRENCY_UPDATE_STEP=60
+    command: >
+      sh -c "
+        sleep 5 &&
+        alembic upgrade head &&
+        uvicorn --reload app.api:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 1000 --log-level trace
+      "
+    depends_on:
+      - database
+      - currency_update
+    volumes:
+      - ./:/app
+    ports:
+      - 8000:8000
+
+  currency_update:
+    container_name: currency_update
+    build:
+      dockerfile: Dockerfile
+    environment:
+      - SERVER_NAME=default
+      - SERVER_HOST=http://127.0.0.1:8000
+      - SERVER_TZ=Europe/Moscow
+      - APP_MODE=develop
+      - PROJECT_NAME=bottec_test
+      - PROJECT_VERSION=0.1.0
+      - API_STATUS=develop
+      - POSTGRES_SERVER=database:5432
+      - POSTGRES_DB=bottec_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+
+      - EXCHANGERATES_API_KEY=mYQX0S0miaPX8NK7MMlH6Z9SVapRjOWR
+      - EXCHANGERATES_API_URL=https://api.apilayer.com/exchangerates_data
+
+      - CURRENCY_UPDATE_STEP=60
+    command: >
+      sh -c "
+        python3 -m app.currency_update
+      "
+    depends_on:
+      - database
+    volumes:
+      - ./:/app
